@@ -670,20 +670,6 @@ function renderSummary(){
       </details>`;
   }).join("");
 
-  // Who paid (only shown when at least one entry has a payer)
-  const byPayer = {};
-  entries.forEach(e => {
-    const p = (e.paidBy || "").trim() || "Not specified";
-    byPayer[p] = (byPayer[p] || 0) + Number(e.sgd || 0);
-  });
-  const hasPayers = entries.some(e => (e.paidBy || "").trim());
-  payerEl.innerHTML = hasPayers
-    ? `<h3 class="section">By who paid</h3>` +
-      Object.entries(byPayer).sort((a,b) => b[1]-a[1])
-        .map(([p, amt]) => `<div class="payer-row"><span>${esc(p)}</span><span>${sgd(amt)}</span></div>`).join("")
-    : "";
-}
-
 /* ---------------- Pie chart ---------------- */
 let pieSelected = null; // category locked in by a click/tap
 
