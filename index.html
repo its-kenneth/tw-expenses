@@ -1,0 +1,846 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Travel Ledger</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Instrument+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --page: #eaf0f3;
+    --page-deep: #dbe5ea;
+    --ink: #1d2b4f;
+    --ink-soft: #56647f;
+    --rule: #a8b8c6;
+    --rule-strong: #6a7f97;
+    --stamp: #b3372f;
+    --ntd: #2b7a70;
+    --ntd-soft: #2b7a7018;
+    --cover: #1d2b4f;
+    --shadow: 0 18px 40px rgba(20,32,60,0.20);
+  }
+  *{ box-sizing:border-box; }
+  html,body{
+    margin:0; padding:0; min-height:100vh;
+    background: #c9d4dc;
+    font-family: 'Instrument Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
+    font-variant-numeric: tabular-nums;
+    color: var(--ink);
+  }
+  .page{ max-width: 720px; margin: 28px auto 80px; padding: 0 16px; }
+
+  /* Passport-cover masthead */
+  .masthead{
+    background: var(--cover);
+    color: #e9e2c8;
+    border-radius: 6px 6px 0 0;
+    padding: 20px 26px 18px;
+    display:flex; align-items:flex-end; justify-content:space-between; gap:12px;
+  }
+  .masthead h1{
+    font-family: 'Instrument Serif', Georgia, serif;
+    font-weight: 400;
+    font-size: 40px;
+    line-height: 1;
+    margin: 0;
+    letter-spacing: 0.5px;
+  }
+  .masthead .rate-chip{
+    font-size: 12px;
+    color: #c9c2a6;
+    text-align:right;
+    line-height:1.4;
+  }
+
+  /* Visa page */
+  .book{
+    position:relative;
+    background-color: var(--page);
+    background-image:
+      repeating-radial-gradient(circle at 100% 0%, transparent 0 22px, rgba(43,122,112,0.05) 22px 23px),
+      repeating-radial-gradient(circle at 0% 100%, transparent 0 30px, rgba(29,43,79,0.04) 30px 31px);
+    border-radius: 0 0 6px 6px;
+    box-shadow: var(--shadow);
+    padding: 22px 26px 26px;
+  }
+
+  .tabs{ display:flex; gap:4px; margin-bottom:20px; border-bottom:1.5px solid var(--rule-strong); }
+  .tab{
+    font-family: inherit; font-size:14px; font-weight:500;
+    background:none; border:none; color: var(--ink-soft);
+    padding:8px 12px 9px; cursor:pointer;
+    border-bottom: 3px solid transparent; margin-bottom:-1.5px;
+  }
+  .tab:hover{ color: var(--ink); }
+  .tab.active{ color: var(--ink); font-weight:700; border-bottom-color: var(--stamp); }
+  .tab.admin{ margin-left:auto; }
+  .tab:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible, summary:focus-visible{
+    outline: 2px solid var(--stamp); outline-offset: 2px;
+  }
+  .panel{ display:none; }
+  .panel.active{ display:block; }
+
+  label{
+    display:block; font-size:13px; font-weight:600;
+    color: var(--ink-soft); margin: 16px 0 4px;
+  }
+  label .opt{ font-weight:400; }
+  input, select{
+    width:100%; font-family:inherit; font-size:16px;
+    background:transparent; border:none; border-bottom:1.5px solid var(--rule-strong);
+    padding:6px 2px; color:var(--ink); border-radius:0;
+  }
+  input:focus, select:focus{ outline:none; border-bottom-color: var(--stamp); }
+  .row2{ display:flex; gap:16px; }
+  .row2 > div{ flex:1; min-width:0; }
+
+  /* Currency switch */
+  .amount-wrap{ display:flex; align-items:flex-end; gap:10px; }
+  .amount-wrap input{ flex:1; font-size:20px; font-weight:600; }
+  .cur-switch{ display:inline-flex; border:1.5px solid var(--ink); border-radius:4px; overflow:hidden; flex-shrink:0; }
+  .cur-switch button{
+    font-family:inherit; font-size:13px; font-weight:700;
+    padding:7px 12px; border:none; background:transparent; color:var(--ink); cursor:pointer;
+  }
+  .cur-switch button + button{ border-left:1.5px solid var(--ink); }
+  .cur-switch button[aria-pressed="true"]{ background: var(--ink); color: var(--page); }
+  .cur-switch button[data-cur="NTD"][aria-pressed="true"]{ background: var(--ntd); }
+  .convert-hint{ font-size:13px; color: var(--ntd); margin-top:6px; min-height:18px; }
+
+  /* The rubber-stamp button */
+  .stamp-btn{
+    margin-top:24px; width:100%;
+    font-family:'Instrument Serif', Georgia, serif;
+    font-size:24px; letter-spacing:1px;
+    background: transparent;
+    border: 3px double var(--stamp);
+    color: var(--stamp);
+    padding: 8px 10px 6px;
+    border-radius: 8px;
+    cursor:pointer;
+    transform: rotate(-1.2deg);
+    transition: transform .15s ease, background .15s ease, color .15s ease;
+  }
+  .stamp-btn:hover{ background: var(--stamp); color:#fff; transform: rotate(0deg); }
+  .stamp-btn:active{ transform: scale(0.97); }
+  .stamp-btn:disabled{ opacity:.55; cursor:wait; }
+
+  .status-line{ font-size:13px; color:var(--ink-soft); margin-top:10px; min-height:18px; }
+  .status-line.err{ color:var(--stamp); }
+  .status-line.ok{ color: var(--ntd); }
+
+  h3.section{
+    font-family:'Instrument Serif', Georgia, serif; font-weight:400;
+    font-size:22px; margin:28px 0 6px; padding-bottom:4px;
+    border-bottom:1px dashed var(--rule);
+  }
+
+  /* Entry rows */
+  .entry-row{
+    display:flex; justify-content:space-between; align-items:center; gap:10px;
+    font-size:14px; padding:8px 0;
+    border-bottom: 1px dotted var(--rule);
+  }
+  .e-date{ color: var(--ink-soft); width:52px; flex-shrink:0; font-size:12px; line-height:1.2; }
+  .e-mid{ flex:1; min-width:0; }
+  .e-item{ display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-weight:500; }
+  .e-meta{ display:block; font-size:12px; color:var(--ink-soft); }
+  .e-remark{ display:block; font-size:12px; color:var(--ink-soft); font-style:italic; overflow-wrap:anywhere; }
+  .e-amt{ text-align:right; flex-shrink:0; line-height:1.25; }
+  .amt-main{ display:block; font-weight:700; }
+  .amt-main.ntd{ color: var(--ntd); }
+  .amt-sub{ display:block; font-size:12px; color: var(--ink-soft); }
+
+  /* Summary */
+  .total-block{
+    display:flex; justify-content:space-between; align-items:flex-end; gap:12px;
+    border-bottom: 3px double var(--rule-strong);
+    padding-bottom: 12px; margin-bottom: 6px;
+  }
+  .total-block .label{ font-family:'Instrument Serif', Georgia, serif; font-size:22px; }
+  .total-block .amount{ font-size:34px; font-weight:700; letter-spacing:-0.5px; }
+  .total-notes{ font-size:13px; color:var(--ink-soft); line-height:1.6; margin-bottom:8px; }
+  .total-notes strong{ color: var(--ntd); }
+
+  .cat-row{ border-bottom: 1px dotted var(--rule); padding:10px 0; }
+  .cat-row summary{ list-style:none; cursor:pointer; }
+  .cat-row summary::-webkit-details-marker{ display:none; }
+  .cat-head{ display:flex; justify-content:space-between; gap:10px; font-size:15px; margin-bottom:6px; }
+  .cat-name{ font-weight:600; }
+  .cat-name::before{
+    content:"▸"; display:inline-block; width:14px; font-size:11px;
+    color: var(--ink-soft); transition: transform .15s ease;
+  }
+  .cat-row[open] .cat-name::before{ transform: rotate(90deg); }
+  .cat-amt{ font-weight:700; text-align:right; }
+  .cat-amt .cat-pct{ font-weight:400; color:var(--ink-soft); font-size:13px; }
+  .bar-track{ height:6px; background: rgba(29,43,79,0.09); border-radius:3px; overflow:hidden; }
+  .bar-fill{ height:100%; background: var(--ink); border-radius:3px; }
+  .cat-expenses{ margin-top:8px; padding-left:14px; }
+
+  .payer-row{ display:flex; justify-content:space-between; font-size:14px; padding:6px 0; border-bottom:1px dotted var(--rule); }
+  .payer-row span:last-child{ font-weight:700; }
+
+  /* Pie chart */
+  .pie-wrap{ display:flex; align-items:center; gap:24px; margin:10px 0 14px; }
+  .pie-wrap:empty{ display:none; }
+  .pie-svg{ width:220px; height:220px; flex-shrink:0; overflow:visible; }
+  .pie-svg .slice{ cursor:pointer; stroke: var(--page); stroke-width:2; transition: transform .18s ease, opacity .18s ease; }
+  .pie-svg.has-focus .slice{ opacity:.5; }
+  .pie-svg.has-focus .slice.focus{ opacity:1; }
+  .pie-side{ flex:1; min-width:0; }
+  .pie-readout{ min-height:84px; padding-bottom:10px; margin-bottom:8px; border-bottom:1px dashed var(--rule); }
+  .pie-readout .r-cat{ font-family:'Instrument Serif', Georgia, serif; font-size:22px; line-height:1.15; }
+  .pie-readout .r-amt{ font-size:26px; font-weight:700; }
+  .pie-readout .r-sub{ font-size:13px; color:var(--ink-soft); }
+  .pie-legend{ display:flex; flex-direction:column; gap:2px; }
+  .legend-btn{
+    display:flex; align-items:center; gap:8px; width:100%;
+    font-family:inherit; font-size:13px; color:var(--ink); text-align:left;
+    background:none; border:none; padding:3px 4px; border-radius:3px; cursor:pointer;
+  }
+  .legend-btn:hover, .legend-btn.focus{ background: rgba(29,43,79,0.07); }
+  .legend-btn .sw{ width:11px; height:11px; border-radius:2px; flex-shrink:0; }
+  .legend-btn .lg-name{ flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .legend-btn .lg-pct{ color:var(--ink-soft); }
+  @media (max-width:560px){
+    .pie-wrap{ flex-direction:column; align-items:stretch; }
+    .pie-svg{ align-self:center; }
+  }
+
+  /* Admin */
+  .rate-line{ display:flex; align-items:center; gap:10px; font-size:16px; font-weight:600; }
+  .rate-line input{ width:130px; flex:none; text-align:right; font-size:20px; }
+  .field-note{
+    font-size:13px; color:var(--ink-soft); margin-top:20px; line-height:1.55;
+    border-top:1px dashed var(--rule); padding-top:10px;
+  }
+  .field-note code{ background: rgba(29,43,79,0.08); padding:1px 5px; border-radius:3px; }
+
+  .empty{ font-size:14px; color:var(--ink-soft); font-style:italic; padding:12px 0; }
+
+  @media (max-width:480px){
+    .masthead{ padding:16px 18px 14px; }
+    .masthead h1{ font-size:32px; }
+    .book{ padding:18px 16px 22px; }
+    .tab{ padding:8px 8px 9px; font-size:13px; }
+    .total-block .amount{ font-size:28px; }
+  }
+  @media (prefers-reduced-motion: reduce){
+    *{ transition:none !important; }
+  }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <header class="masthead">
+    <h1>Travel ledger</h1>
+    <div class="rate-chip" id="rate-chip"></div>
+  </header>
+
+  <main class="book">
+    <nav class="tabs" role="tablist">
+      <button class="tab active" data-tab="entry" role="tab">New entry</button>
+      <button class="tab" data-tab="summary" role="tab">Summary</button>
+      <button class="tab admin" data-tab="admin" role="tab">Admin</button>
+    </nav>
+
+    <!-- NEW ENTRY -->
+    <section class="panel active" id="panel-entry">
+      <form id="entry-form" autocomplete="off">
+        <label for="f-item">Item</label>
+        <input type="text" id="f-item" placeholder="Beef noodles at Yongkang St" required>
+
+        <label for="f-category">Category</label>
+        <select id="f-category"></select>
+
+        <label for="f-amount">Amount</label>
+        <div class="amount-wrap">
+          <input type="number" id="f-amount" step="0.01" min="0" inputmode="decimal" placeholder="0.00" required>
+          <div class="cur-switch" role="group" aria-label="Currency">
+            <button type="button" data-cur="SGD" aria-pressed="false">SGD</button>
+            <button type="button" data-cur="NTD" aria-pressed="false">NTD</button>
+          </div>
+        </div>
+        <div class="convert-hint" id="convert-hint"></div>
+
+        <div class="row2">
+          <div>
+            <label for="f-date">Date</label>
+            <input type="date" id="f-date" required>
+          </div>
+          <div>
+            <label for="f-paidby">Paid by <span class="opt">(optional)</span></label>
+            <input type="text" id="f-paidby" list="payer-list" placeholder="Name">
+            <datalist id="payer-list"></datalist>
+          </div>
+        </div>
+
+        <label for="f-remarks">Remarks <span class="opt">(optional)</span></label>
+        <input type="text" id="f-remarks" placeholder="Shared with 3, receipt in wallet">
+
+        <button type="submit" class="stamp-btn" id="entry-btn">Stamp it</button>
+        <div class="status-line" id="status"></div>
+      </form>
+
+      <h3 class="section">Recent entries</h3>
+      <div id="recent-list"><div class="empty">Loading…</div></div>
+
+      <div class="field-note" id="config-note"></div>
+    </section>
+
+    <!-- SUMMARY -->
+    <section class="panel" id="panel-summary">
+      <div class="total-block">
+        <span class="label">Total spent</span>
+        <span class="amount" id="total-sgd">S$0.00</span>
+      </div>
+      <div class="total-notes" id="total-notes"></div>
+
+      <h3 class="section">By category</h3>
+      <div class="pie-wrap" id="pie-wrap"></div>
+      <div id="category-breakdown"><div class="empty">Loading…</div></div>
+
+      <div id="payer-section"></div>
+    </section>
+
+    <!-- ADMIN -->
+    <section class="panel" id="panel-admin">
+      <form id="admin-form">
+        <label for="a-currency">Default currency for new entries</label>
+        <select id="a-currency">
+          <option value="SGD">SGD — Singapore dollar</option>
+          <option value="NTD">NTD — New Taiwan dollar</option>
+        </select>
+
+        <label for="a-rate">Exchange rate</label>
+        <div class="rate-line">
+          <span>1 SGD =</span>
+          <input type="number" id="a-rate" step="0.01" min="0" inputmode="decimal" placeholder="23.80" required>
+          <span>NTD</span>
+        </div>
+        <div class="convert-hint" id="rate-inverse"></div>
+
+        <button type="submit" class="stamp-btn" id="admin-btn">Save settings</button>
+        <div class="status-line" id="admin-status"></div>
+      </form>
+
+      <div class="field-note">
+        Each expense keeps the rate that was set when it was entered. Changing the rate here applies to new NTD entries only, so past totals stay the same. To fix an old entry, edit its Rate and SGD cells in the Expenses sheet.
+      </div>
+    </section>
+  </main>
+</div>
+
+<script>
+/* ------------------------------------------------------------------
+ * CONFIGURE ME: paste your Google Apps Script Web App URL here.
+ * Until you do, the app runs in local demo mode (data is stored in
+ * this browser only).
+ * ---------------------------------------------------------------- */
+const API_URL = "PASTE_YOUR_WEB_APP_URL_HERE";
+
+const isDemoMode = !API_URL || API_URL.indexOf("PASTE_YOUR") !== -1;
+const LOCAL_ENTRIES_KEY = "travel_demo_entries";
+const LOCAL_SETTINGS_KEY = "travel_demo_settings";
+
+const CATEGORIES = [
+  "Transport",
+  "Flights",
+  "Food",
+  "Drinks/Desserts",
+  "Entertainment/Attractions",
+  "Shopping",
+  "Gifts",
+  "Other"
+];
+const CATEGORY_COLORS = {
+  "Transport": "#1d2b4f",
+  "Flights": "#5b7fb3",
+  "Food": "#b3372f",
+  "Drinks/Desserts": "#e0977c",
+  "Entertainment/Attractions": "#2b7a70",
+  "Shopping": "#c9a227",
+  "Gifts": "#7d5a8c",
+  "Other": "#98a3af"
+};
+const DEFAULT_SETTINGS = { defaultCurrency: "SGD", sgdToNtd: 23.8 };
+
+// In-memory copy of the sheet so tabs render instantly.
+const state = { entries: [], settings: { ...DEFAULT_SETTINGS }, loaded: false };
+let currentCurrency = DEFAULT_SETTINGS.defaultCurrency;
+
+/* ---------------- Helpers ---------------- */
+function todayISO(){
+  const d = new Date();
+  return d.getFullYear() + "-" + String(d.getMonth()+1).padStart(2,"0") + "-" + String(d.getDate()).padStart(2,"0");
+}
+function toISODate(raw){
+  if(raw === null || raw === undefined || raw === "") return "";
+  const s = String(raw).trim();
+  const m = s.match(/^\d{4}-\d{2}-\d{2}/);
+  if(m) return m[0];
+  const d = new Date(s);
+  if(isNaN(d.getTime())) return "";
+  return d.getFullYear() + "-" + String(d.getMonth()+1).padStart(2,"0") + "-" + String(d.getDate()).padStart(2,"0");
+}
+function shortDate(iso){
+  if(!iso) return "";
+  const [y,m,d] = iso.split("-").map(Number);
+  return new Date(y, m-1, d).toLocaleDateString(undefined, { day:"numeric", month:"short" });
+}
+function longDate(iso){
+  if(!iso) return "";
+  const [y,m,d] = iso.split("-").map(Number);
+  return new Date(y, m-1, d).toLocaleDateString(undefined, { day:"numeric", month:"short", year:"numeric" });
+}
+function esc(s){
+  return String(s ?? "").replace(/[&<>"']/g, c => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[c]));
+}
+function sgd(n){
+  return "S$" + Number(n || 0).toLocaleString(undefined, { minimumFractionDigits:2, maximumFractionDigits:2 });
+}
+function ntd(n){
+  return "NT$" + Number(n || 0).toLocaleString(undefined, { minimumFractionDigits:0, maximumFractionDigits:2 });
+}
+function round2(n){ return Math.round(Number(n) * 100) / 100; }
+
+// Shows SGD only, or NTD with its SGD equivalent underneath.
+function amountHtml(e){
+  if(e.currency === "NTD"){
+    return `<span class="amt-main ntd">${ntd(e.amount)}</span><span class="amt-sub">≈ ${sgd(e.sgd)}</span>`;
+  }
+  return `<span class="amt-main">${sgd(e.amount)}</span>`;
+}
+
+function entryRowHtml(e, showCategory){
+  const meta = [showCategory ? e.category : "", e.paidBy ? "Paid by " + e.paidBy : ""].filter(Boolean).join(", ");
+  return `
+    <div class="entry-row">
+      <span class="e-date">${esc(shortDate(e._iso))}</span>
+      <span class="e-mid">
+        <span class="e-item">${esc(e.item || "(no item)")}</span>
+        ${meta ? `<span class="e-meta">${esc(meta)}</span>` : ""}
+        ${e.remarks ? `<span class="e-remark">${esc(e.remarks)}</span>` : ""}
+      </span>
+      <span class="e-amt">${amountHtml(e)}</span>
+    </div>`;
+}
+
+// Newest date first; for the same date, the most recently added first.
+function sortedEntries(){
+  return state.entries
+    .map((e, idx) => ({ ...e, _iso: toISODate(e.date), _idx: idx }))
+    .sort((a,b) => b._iso.localeCompare(a._iso) || b._idx - a._idx);
+}
+
+/* ---------------- Data layer ---------------- */
+function loadLocal(key, fallback){
+  try{ return JSON.parse(localStorage.getItem(key)) ?? fallback; }catch(e){ return fallback; }
+}
+function saveLocal(key, value){
+  try{ localStorage.setItem(key, JSON.stringify(value)); }catch(e){}
+}
+
+async function fetchAll(){
+  if(isDemoMode){
+    return {
+      entries: loadLocal(LOCAL_ENTRIES_KEY, []),
+      settings: { ...DEFAULT_SETTINGS, ...loadLocal(LOCAL_SETTINGS_KEY, {}) }
+    };
+  }
+  const res = await fetch(API_URL, { method: "GET" });
+  if(!res.ok) throw new Error("Failed to load data");
+  const data = await res.json();
+  return {
+    entries: data.entries || [],
+    settings: { ...DEFAULT_SETTINGS, ...(data.settings || {}) }
+  };
+}
+
+async function postJSON(body){
+  const res = await fetch(API_URL, {
+    method: "POST",
+    headers: { "Content-Type": "text/plain;charset=utf-8" },
+    body: JSON.stringify(body)
+  });
+  return await res.json();
+}
+
+async function addEntry(entry){
+  if(isDemoMode){
+    const rate = entry.currency === "NTD" ? state.settings.sgdToNtd : 1;
+    const list = loadLocal(LOCAL_ENTRIES_KEY, []);
+    list.push({ ...entry, rate, sgd: round2(entry.amount / rate) });
+    saveLocal(LOCAL_ENTRIES_KEY, list);
+    return { status: "ok" };
+  }
+  return postJSON(entry);
+}
+
+async function saveSettings(settings){
+  if(isDemoMode){
+    saveLocal(LOCAL_SETTINGS_KEY, settings);
+    return { status: "ok", settings };
+  }
+  return postJSON({ type: "settings", ...settings });
+}
+
+async function refresh(){
+  const data = await fetchAll();
+  state.entries = data.entries;
+  state.settings = data.settings;
+  state.loaded = true;
+  renderAll();
+}
+
+/* ---------------- Tabs ---------------- */
+document.querySelectorAll(".tab").forEach(btn => {
+  btn.addEventListener("click", () => activateTab(btn.dataset.tab));
+});
+function activateTab(tab){
+  document.querySelectorAll(".tab").forEach(b => {
+    const on = b.dataset.tab === tab;
+    b.classList.toggle("active", on);
+    b.setAttribute("aria-selected", on);
+  });
+  document.querySelectorAll(".panel").forEach(p => p.classList.toggle("active", p.id === "panel-" + tab));
+  if(tab === "summary") renderSummary();
+  if(tab === "admin") fillAdminForm();
+}
+
+/* ---------------- New entry ---------------- */
+const dateInput = document.getElementById("f-date");
+const amountInput = document.getElementById("f-amount");
+dateInput.value = todayISO();
+
+document.getElementById("f-category").innerHTML =
+  CATEGORIES.map(c => `<option value="${esc(c)}">${esc(c)}</option>`).join("");
+const DEFAULT_CATEGORY = "Food";
+document.getElementById("f-category").value = DEFAULT_CATEGORY;
+
+function setCurrency(cur){
+  currentCurrency = cur;
+  document.querySelectorAll(".cur-switch button").forEach(b => {
+    b.setAttribute("aria-pressed", b.dataset.cur === cur ? "true" : "false");
+  });
+  amountInput.step = cur === "NTD" ? "1" : "0.01";
+  amountInput.placeholder = cur === "NTD" ? "0" : "0.00";
+  updateConvertHint();
+}
+document.querySelectorAll(".cur-switch button").forEach(b => {
+  b.addEventListener("click", () => setCurrency(b.dataset.cur));
+});
+
+function updateConvertHint(){
+  const hint = document.getElementById("convert-hint");
+  if(currentCurrency !== "NTD"){ hint.textContent = ""; return; }
+  const amt = parseFloat(amountInput.value);
+  const rate = state.settings.sgdToNtd;
+  hint.textContent = amt > 0
+    ? `≈ ${sgd(amt / rate)} at 1 SGD = ${rate} NTD`
+    : `Converts at 1 SGD = ${rate} NTD`;
+}
+amountInput.addEventListener("input", updateConvertHint);
+
+document.getElementById("entry-form").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const statusEl = document.getElementById("status");
+  const btn = document.getElementById("entry-btn");
+  const item = document.getElementById("f-item").value.trim();
+  const category = document.getElementById("f-category").value;
+  const amount = parseFloat(amountInput.value);
+  const date = dateInput.value || todayISO();
+  const paidBy = document.getElementById("f-paidby").value.trim();
+  const remarks = document.getElementById("f-remarks").value.trim();
+  const currency = currentCurrency;
+
+  statusEl.className = "status-line";
+  if(!item){ statusEl.textContent = "Enter what the expense was for."; statusEl.classList.add("err"); return; }
+  if(!amount || amount <= 0){ statusEl.textContent = "Enter an amount greater than zero."; statusEl.classList.add("err"); return; }
+
+  statusEl.textContent = "Saving…";
+  btn.disabled = true;
+  try{
+    const result = await addEntry({ date, item, category, amount, currency, paidBy, remarks });
+    if(result.status !== "ok") throw new Error(result.message || "Unknown error");
+    const shown = currency === "NTD"
+      ? `${ntd(amount)} (≈ ${sgd(amount / state.settings.sgdToNtd)})`
+      : sgd(amount);
+    statusEl.textContent = `Saved ${shown} for ${item}.`;
+    statusEl.classList.add("ok");
+    document.getElementById("f-item").value = "";
+    document.getElementById("f-remarks").value = "";
+    document.getElementById("f-category").value = DEFAULT_CATEGORY;
+    amountInput.value = "";
+    updateConvertHint();
+    await refresh();
+  }catch(err){
+    statusEl.textContent = "Could not save: " + err.message;
+    statusEl.classList.add("err");
+  }finally{
+    btn.disabled = false;
+  }
+});
+
+function renderRecent(){
+  const listEl = document.getElementById("recent-list");
+  if(state.entries.length === 0){
+    listEl.innerHTML = '<div class="empty">No expenses yet. Add your first one above.</div>';
+    return;
+  }
+  listEl.innerHTML = sortedEntries().slice(0, 10).map(e => entryRowHtml(e, true)).join("");
+}
+
+function renderPayerList(){
+  const payers = [...new Set(state.entries.map(e => (e.paidBy || "").trim()).filter(Boolean))].sort();
+  document.getElementById("payer-list").innerHTML = payers.map(p => `<option value="${esc(p)}">`).join("");
+}
+
+/* ---------------- Summary ---------------- */
+function renderSummary(){
+  const totalEl = document.getElementById("total-sgd");
+  const notesEl = document.getElementById("total-notes");
+  const breakdownEl = document.getElementById("category-breakdown");
+  const payerEl = document.getElementById("payer-section");
+
+  if(!state.loaded) return;
+  const entries = sortedEntries();
+
+  if(entries.length === 0){
+    totalEl.textContent = sgd(0);
+    notesEl.textContent = "";
+    breakdownEl.innerHTML = '<div class="empty">No expenses yet. Add one on the New entry tab.</div>';
+    payerEl.innerHTML = "";
+    return;
+  }
+
+  const totalSgd = entries.reduce((s,e) => s + Number(e.sgd || 0), 0);
+  const ntdEntries = entries.filter(e => e.currency === "NTD");
+  const sgdEntries = entries.filter(e => e.currency !== "NTD");
+  const totalNtd = ntdEntries.reduce((s,e) => s + Number(e.amount || 0), 0);
+  const ntdAsSgd = ntdEntries.reduce((s,e) => s + Number(e.sgd || 0), 0);
+  const paidInSgd = sgdEntries.reduce((s,e) => s + Number(e.amount || 0), 0);
+
+  const dates = entries.map(e => e._iso).filter(Boolean).sort();
+  const span = dates.length
+    ? (dates[0] === dates[dates.length-1] ? longDate(dates[0]) : `${longDate(dates[0])} to ${longDate(dates[dates.length-1])}`)
+    : "";
+
+  totalEl.textContent = sgd(totalSgd);
+  notesEl.innerHTML = `
+    ${entries.length} ${entries.length === 1 ? "expense" : "expenses"}${span ? ", " + esc(span) : ""}<br>
+    Paid in SGD: ${sgd(paidInSgd)}<br>
+    Paid in NTD: <strong>${ntd(totalNtd)}</strong> ≈ ${sgd(ntdAsSgd)}
+  `;
+
+  // Category breakdown
+  const byCat = {};
+  entries.forEach(e => {
+    const cat = CATEGORIES.includes(e.category) ? e.category : "Other";
+    (byCat[cat] = byCat[cat] || []).push(e);
+  });
+  const catList = Object.entries(byCat)
+    .map(([cat, list]) => {
+      const catSgd = list.reduce((s,e) => s + Number(e.sgd || 0), 0);
+      const catNtd = list.filter(e => e.currency === "NTD").reduce((s,e) => s + Number(e.amount || 0), 0);
+      return { cat, list, catSgd, catNtd };
+    })
+    .sort((a,b) => b.catSgd - a.catSgd);
+  const max = catList.length && catList[0].catSgd > 0 ? catList[0].catSgd : 1;
+
+  renderPie(catList, totalSgd);
+
+  breakdownEl.innerHTML = catList.map(({ cat, list, catSgd, catNtd }) => {
+    const share = totalSgd > 0 ? Math.round(catSgd / totalSgd * 100) : 0;
+    const ntdLine = catNtd > 0 ? `<span class="amt-sub">incl. ${ntd(catNtd)}</span>` : "";
+    return `
+      <details class="cat-row">
+        <summary>
+          <div class="cat-head">
+            <span class="cat-name">${esc(cat)}</span>
+            <span class="cat-amt">${sgd(catSgd)} <span class="cat-pct">${share}%</span>${ntdLine}</span>
+          </div>
+          <div class="bar-track"><div class="bar-fill" style="width:${(catSgd/max*100).toFixed(1)}%; background:${CATEGORY_COLORS[cat] || CATEGORY_COLORS.Other}"></div></div>
+        </summary>
+        <div class="cat-expenses">${list.map(e => entryRowHtml(e, false)).join("")}</div>
+      </details>`;
+  }).join("");
+
+  // Who paid (only shown when at least one entry has a payer)
+  const byPayer = {};
+  entries.forEach(e => {
+    const p = (e.paidBy || "").trim() || "Not specified";
+    byPayer[p] = (byPayer[p] || 0) + Number(e.sgd || 0);
+  });
+  const hasPayers = entries.some(e => (e.paidBy || "").trim());
+  payerEl.innerHTML = hasPayers
+    ? `<h3 class="section">By who paid</h3>` +
+      Object.entries(byPayer).sort((a,b) => b[1]-a[1])
+        .map(([p, amt]) => `<div class="payer-row"><span>${esc(p)}</span><span>${sgd(amt)}</span></div>`).join("")
+    : "";
+}
+
+/* ---------------- Pie chart ---------------- */
+let pieSelected = null; // category locked in by a click/tap
+
+function renderPie(catList, totalSgd){
+  const wrap = document.getElementById("pie-wrap");
+  const slices = catList.filter(c => c.catSgd > 0);
+  if(slices.length === 0 || totalSgd <= 0){ wrap.innerHTML = ""; return; }
+  if(pieSelected && !slices.some(c => c.cat === pieSelected)) pieSelected = null;
+
+  const cx = 110, cy = 110, r = 100;
+  let angle = -Math.PI / 2;
+  const paths = slices.map(c => {
+    const frac = c.catSgd / totalSgd;
+    const start = angle, end = angle + frac * Math.PI * 2;
+    angle = end;
+    const mid = (start + end) / 2;
+    const dx = (Math.cos(mid) * 7).toFixed(2), dy = (Math.sin(mid) * 7).toFixed(2);
+    const color = CATEGORY_COLORS[c.cat] || CATEGORY_COLORS.Other;
+    const attrs = `class="slice" data-cat="${esc(c.cat)}" data-dx="${dx}" data-dy="${dy}" fill="${color}"`;
+    if(slices.length === 1) return `<circle ${attrs} cx="${cx}" cy="${cy}" r="${r}"></circle>`;
+    const x1 = cx + r * Math.cos(start), y1 = cy + r * Math.sin(start);
+    const x2 = cx + r * Math.cos(end),   y2 = cy + r * Math.sin(end);
+    const large = end - start > Math.PI ? 1 : 0;
+    return `<path ${attrs} d="M${cx},${cy} L${x1.toFixed(2)},${y1.toFixed(2)} A${r},${r} 0 ${large} 1 ${x2.toFixed(2)},${y2.toFixed(2)} Z"></path>`;
+  }).join("");
+
+  const legend = slices.map(c => `
+    <button type="button" class="legend-btn" data-cat="${esc(c.cat)}">
+      <span class="sw" style="background:${CATEGORY_COLORS[c.cat] || CATEGORY_COLORS.Other}"></span>
+      <span class="lg-name">${esc(c.cat)}</span>
+      <span class="lg-pct">${Math.round(c.catSgd / totalSgd * 100)}%</span>
+    </button>`).join("");
+
+  wrap.innerHTML = `
+    <svg class="pie-svg" viewBox="0 0 220 220" role="img" aria-label="Spending by category">${paths}</svg>
+    <div class="pie-side">
+      <div class="pie-readout" id="pie-readout" aria-live="polite"></div>
+      <div class="pie-legend">${legend}</div>
+    </div>`;
+
+  const byCat = Object.fromEntries(slices.map(c => [c.cat, c]));
+  const svg = wrap.querySelector(".pie-svg");
+  const readout = wrap.querySelector("#pie-readout");
+
+  function show(cat){
+    svg.classList.toggle("has-focus", !!cat);
+    wrap.querySelectorAll(".slice").forEach(el => {
+      const on = el.dataset.cat === cat;
+      el.classList.toggle("focus", on);
+      el.style.transform = on && slices.length > 1 ? `translate(${el.dataset.dx}px, ${el.dataset.dy}px)` : "";
+    });
+    wrap.querySelectorAll(".legend-btn").forEach(el => el.classList.toggle("focus", el.dataset.cat === cat));
+
+    if(!cat){
+      readout.innerHTML = `
+        <div class="r-cat">All categories</div>
+        <div class="r-amt">${sgd(totalSgd)}</div>
+        <div class="r-sub">Hover or tap a slice to see each category</div>`;
+      return;
+    }
+    const c = byCat[cat];
+    const share = (c.catSgd / totalSgd * 100).toFixed(1);
+    readout.innerHTML = `
+      <div class="r-cat">${esc(cat)}</div>
+      <div class="r-amt">${sgd(c.catSgd)}</div>
+      <div class="r-sub">${share}% of total, ${c.list.length} ${c.list.length === 1 ? "expense" : "expenses"}${c.catNtd > 0 ? `<br>incl. ${ntd(c.catNtd)} paid in NTD` : ""}</div>`;
+  }
+
+  wrap.querySelectorAll(".slice, .legend-btn").forEach(el => {
+    el.addEventListener("mouseenter", () => show(el.dataset.cat));
+    el.addEventListener("mouseleave", () => show(pieSelected));
+    el.addEventListener("click", () => {
+      pieSelected = pieSelected === el.dataset.cat ? null : el.dataset.cat;
+      show(pieSelected);
+    });
+  });
+
+  show(pieSelected);
+}
+
+/* ---------------- Admin ---------------- */
+const rateInput = document.getElementById("a-rate");
+
+function fillAdminForm(){
+  document.getElementById("a-currency").value = state.settings.defaultCurrency;
+  rateInput.value = state.settings.sgdToNtd;
+  updateRateInverse();
+}
+function updateRateInverse(){
+  const r = parseFloat(rateInput.value);
+  document.getElementById("rate-inverse").textContent =
+    r > 0 ? `That's 1 NTD = ${(1/r).toFixed(4)} SGD` : "";
+}
+rateInput.addEventListener("input", updateRateInverse);
+
+document.getElementById("admin-form").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const statusEl = document.getElementById("admin-status");
+  const btn = document.getElementById("admin-btn");
+  const defaultCurrency = document.getElementById("a-currency").value;
+  const sgdToNtd = parseFloat(rateInput.value);
+
+  statusEl.className = "status-line";
+  if(!(sgdToNtd > 0)){
+    statusEl.textContent = "Enter an exchange rate above zero, e.g. 23.8.";
+    statusEl.classList.add("err");
+    return;
+  }
+
+  statusEl.textContent = "Saving…";
+  btn.disabled = true;
+  try{
+    const result = await saveSettings({ defaultCurrency, sgdToNtd });
+    if(result.status !== "ok") throw new Error(result.message || "Unknown error");
+    state.settings = { ...state.settings, defaultCurrency, sgdToNtd };
+    setCurrency(defaultCurrency);
+    renderRateChip();
+    statusEl.textContent = `Settings saved. New entries default to ${defaultCurrency}.`;
+    statusEl.classList.add("ok");
+  }catch(err){
+    statusEl.textContent = "Could not save: " + err.message;
+    statusEl.classList.add("err");
+  }finally{
+    btn.disabled = false;
+  }
+});
+
+/* ---------------- Render all ---------------- */
+function renderRateChip(){
+  const r = state.settings.sgdToNtd;
+  document.getElementById("rate-chip").innerHTML =
+    `1 SGD = ${r} NTD<br>1 NTD = ${(1/r).toFixed(4)} SGD`;
+}
+
+let firstRender = true;
+function renderAll(){
+  if(firstRender){
+    setCurrency(state.settings.defaultCurrency);
+    firstRender = false;
+  }
+  renderRateChip();
+  updateConvertHint();
+  renderRecent();
+  renderPayerList();
+  if(document.getElementById("panel-summary").classList.contains("active")) renderSummary();
+  if(document.getElementById("panel-admin").classList.contains("active")) fillAdminForm();
+}
+
+document.getElementById("config-note").innerHTML = isDemoMode
+  ? 'Running in <strong>local demo mode</strong>: expenses are saved only in this browser. Deploy <code>Code.gs</code> as a Google Apps Script Web App and paste its URL into <code>API_URL</code> in <code>index.html</code> to save to your Google Sheet.'
+  : 'Connected to your Google Sheet.';
+
+setCurrency(DEFAULT_SETTINGS.defaultCurrency);
+refresh().catch(err => {
+  document.getElementById("recent-list").innerHTML =
+    '<div class="empty">Could not load expenses: ' + esc(err.message) + '. Check that API_URL is your Web App URL and that access is set to Anyone.</div>';
+});
+</script>
+</body>
+</html>
