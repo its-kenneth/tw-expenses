@@ -669,7 +669,8 @@ function renderSummary(){
         <div class="cat-expenses">${list.map(e => entryRowHtml(e, false)).join("")}</div>
       </details>`;
   }).join("");
-
+}
+  
 /* ---------------- Pie chart ---------------- */
 let pieSelected = null; // category locked in by a click/tap
 
